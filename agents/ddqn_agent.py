@@ -4,7 +4,7 @@ import torch.optim as optim
 import random
 from collections import deque
 import numpy as np
-from q_network import QNetwork
+from models.q_network import QNetwork
 
 
 class DDQNAgent:
@@ -20,17 +20,17 @@ class DDQNAgent:
         self.update_count = 0
 
         self.gamma = 0.98
-        self.epsilon = 0.01
-        self.end_epsilon = 0.01
-        self.decay_rate = 0.995
+        self.epsilon = 1.0
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.995
         self. batch_size = 64
         self.min_samples = 1000
         self.target_update_interval = 10
 
     def select_action(self, state):
         """选择动作"""
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         if np.random.random() < self.epsilon:
-            # self.epsilon = max(self.end_epsilon, self.epsilon * self.decay_rate)
             return np.random.randint(5)
         else:
             with torch.no_grad():
@@ -70,6 +70,8 @@ class DDQNAgent:
         loss = nn.MSELoss()(current_q, target_q)
         self.optimizer.zero_grad()
         loss.backward()
+        # 梯度裁剪
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         # 更新目标网络

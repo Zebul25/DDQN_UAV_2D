@@ -1,33 +1,38 @@
 from collections import deque
-from random import random
+import random
 import numpy as np
 import torch
 from torch import optim, nn
 
-from q_network import QNetwork
+from models.q_network import QNetwork
+
 
 class DQNAgent:
-    def __init__(self):
-        self.q_network = QNetwork()
-        self.target_network = QNetwork()
+    def __init__(self, state_dim, action_dim):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.q_network = QNetwork(state_dim, action_dim)
+        self.target_network = QNetwork(state_dim, action_dim)
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=2e-3)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=1e-3)
         self.replay_buffer = deque(maxlen=10000)
         self.update_count = 0
 
-        self.gamma = 0.98
-        self.epsilon = 0.99
+        self.gamma = 0.99
+        self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = 0.95
+        self.epsilon_decay = 0.995
         self.batch_size = 64
         self.min_samples = 1000
         self.target_update_interval = 10
 
     def select_action(self, state):
         """选择动作"""
+        self.epsilon = max(self.epsilon_min, self.epsilon_decay * self.epsilon)
         if np.random.random() < self.epsilon:
-            return np.random.randint(5)
+            return np.random.randint(self.action_dim)
+            # return 0
         else:
             with torch.no_grad():
                 state_tensor = torch.FloatTensor(state).unsqueeze(0)
@@ -68,6 +73,8 @@ class DQNAgent:
         loss = nn.MSELoss()(current_q, target_q)
         self.optimizer.zero_grad()
         loss.backward()
+        # 添加梯度裁剪防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         # 更新目标网络

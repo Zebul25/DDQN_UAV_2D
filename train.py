@@ -1,9 +1,10 @@
 from matplotlib import pyplot as plt
 
-from DDQNAgent import DDQNAgent, DQNAgent
+from agents.dqn_agent import DQNAgent
+from agents.ddqn_agent import DDQNAgent
 import numpy as np
-from Env import RadarEnvironment, Radar, StealthUAV
-
+from envs.Env import RadarEnvironment, Radar, StealthUAV
+from utils.visualization import plot_convergence_curve
 
 def showTrainResults(env, agent):
     """展示训练结果"""
@@ -52,15 +53,17 @@ def showTrainResults(env, agent):
 
 def train():
     """训练主函数"""
-    # agent = DDQNAgent()
-    agent = DQNAgent()
+    agent = DDQNAgent()
+    # agent = DQNAgent(state_dim=2, action_dim=5)
     env = RadarEnvironment()
 
     # 阶段1: 预训练（无雷达威胁）
     print("Phase 1: Pre-training without radar threats...")
     env.set_radar_enabled(False)
 
-    for episode in range(800):
+    returns = []
+
+    for episode in range(400):
         state = env.reset()
         done = False
         total_reward = 0
@@ -73,19 +76,28 @@ def train():
             agent.update()
             state = next_state
             total_reward += reward
-        agent.epsilon = max(agent.epsilon_min, agent.epsilon_decay * agent.epsilon)
+
+        returns.append(total_reward)
         if (episode + 1) % 50 == 0:
             print(f"Pre-training Episode {episode + 1}, Return: {total_reward:.2f}")
+            avg_reward = np.mean(returns[-20:])
+            print(f"Episode {episode + 1:4d} | Avg Reward (last 50): {avg_reward:6.2f} | Epsilon: {agent.epsilon:.3f}")
 
     # 展示预训练结果
     showTrainResults(env, agent)
-
+    save_path = "./figures"
+    print("Generating Figure : Convergence (No Threat)...")
+    fig = plot_convergence_curve(returns,
+                                  "Figure : Optimal Convergence Rate (No Threat)",
+                                  with_threat=False)
+    fig.savefig(f"{save_path}/figure_convergence_no_threat.png", dpi=300, bbox_inches='tight')
+    plt.close(fig)
 
     # 阶段2: 正式训练（四雷达环境）
-    print("\nPhase 2: Training with radar threats...")
-    env.set_radar_enabled(True)
-
-    returns = []
+    # print("\nPhase 2: Training with radar threats...")
+    # env.set_radar_enabled(True)
+    #
+    # returns = []
     # for episode in range(800):
     #     state = env.reset()
     #     done = False
@@ -110,3 +122,11 @@ def train():
 
 if __name__ == "__main__":
     agent, returns = train()
+    # 展示正式训练结果
+    # save_path = "./figures"
+    # print("Generating Figure : Convergence ...")
+    # fig = plot_convergence_curve(returns,
+    #                              "Figure : Optimal Convergence Rate ",
+    #                              with_threat=False)
+    # fig.savefig(f"{save_path}/figure_convergence_threat.png", dpi=300, bbox_inches='tight')
+    # plt.close(fig)

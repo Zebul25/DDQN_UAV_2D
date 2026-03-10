@@ -55,7 +55,7 @@ class StealthUAV:
     def __init__(self, start_position):
         self.position = np.array(start_position, dtype=float)
         self.heading = 45  # 初始航向角
-        self.step_size = 4  # 每步飞行距离 (km)
+        self.step_size = 5  # 每步飞行距离 (km)
 
     def get_dynamic_RCS(self, radar_position):
         """计算动态RCS"""
@@ -91,9 +91,10 @@ class StealthUAV:
         self.heading = (self.heading + turn_angle) % 360
         dx = self.step_size * np.cos(np.radians(self.heading))
         dy = self.step_size * np.sin(np.radians(self.heading))
+        old_position = self.position.copy()
         self.position = self.position + np.array([dx, dy])
 
-        return self.position.copy()
+        return old_position, self.position.copy()
 
 
 class RadarEnvironment:
@@ -104,7 +105,7 @@ class RadarEnvironment:
         self.airspace_size = (100, 100)
         self.start_point = (0, 0)
         self.target_point = (100, 100)
-        self.target_threshold = 5  # 到达判定距离 (km)
+        self.target_threshold = 4  # 到达判定距离 (km)
 
         # 雷达配置
         self.radar_positions = [(30, 30), (30, 70), (70, 40), (70, 80)]
@@ -141,12 +142,12 @@ class RadarEnvironment:
 
     def calculate_reward(self, Pd_max):
         """计算奖励"""
-        Ra, Rb, Rc = 0, 0, -1
+        Ra, Rb, Rc = 0, 0, 0
 
         # 到达奖励
         dist = np.linalg.norm(self.uav.position - np.array(self.target_point))
         if dist < self.target_threshold:
-            Ra = 100
+            Ra = 20
 
         # 检测惩罚（---有待调整---）
         if Pd_max < 0.3:
@@ -178,7 +179,7 @@ class RadarEnvironment:
 
     def step(self, action):
         """执行一步"""
-        new_position = self.uav.move(action)
+        old_position, new_position = self.uav.move(action)
         Pd_max = self.get_max_detection_probability()
         reward = self.calculate_reward(Pd_max)
 
@@ -193,7 +194,17 @@ class RadarEnvironment:
             info["status"] = "destroyed"
         elif not self.check_boundary():
             done = True
-            reward = -100
+            reward += -20
             info["status"] = "out_of_bounds"
+
+        if not done:
+            # 距离越近得到奖励相反得到惩罚
+            old_dist = np.linalg.norm(old_position - np.array(self.target_point))
+            new_dist = np.linalg.norm(new_position - np.array(self.target_point))
+            # if old_dist > new_dist:
+            #     reward = reward + 2
+            # else:
+            #     reward = reward - 2
+            reward = reward + (old_dist - new_dist) * 0.5
 
         return new_position, reward, done, info

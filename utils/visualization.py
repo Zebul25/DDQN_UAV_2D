@@ -356,7 +356,7 @@ def plot_convergence_curve(returns, title="Convergence Curve", with_threat=False
     if with_threat:
         ax.set_ylim(-1000, 100)
     else:
-        ax.set_ylim(-100, 10)
+        ax.set_ylim(-200, 300)
     
     ax.grid(True, alpha=0.3)
     ax.set_title(title, fontsize=12)
@@ -627,7 +627,7 @@ class RealtimeVisualizer:
 # 第九部分：生成所有论文图表
 # =============================================================================
 
-def generate_all_figures(save_path="./figures"):
+def generate_all_figures(save_path="../figures"):
     """
     生成论文中的所有图表
     
