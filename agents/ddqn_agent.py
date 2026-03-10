@@ -15,7 +15,7 @@ class DDQNAgent:
         self.target_network = QNetwork()
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=2e-3)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=2e-4)
         self.replay_buffer = deque(maxlen=10000)
         self.update_count = 0
 
@@ -23,9 +23,13 @@ class DDQNAgent:
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self. batch_size = 64
+        self.batch_size = 64
         self.min_samples = 1000
         self.target_update_interval = 10
+
+        # 添加Q值和损失历史记录
+        self.q_value_history = []
+        self.loss_history = []
 
     def select_action(self, state):
         """选择动作"""
@@ -36,6 +40,8 @@ class DDQNAgent:
             with torch.no_grad():
                 state_tensor = torch.FloatTensor(state).unsqueeze(0)
                 q_values = self.q_network(state_tensor)
+                # 记录Q值
+                self.q_value_history.append(q_values.max().item())
                 return q_values.argmax().item()
 
     def store_transition(self, state, action, reward, next_state, done):
@@ -78,3 +84,24 @@ class DDQNAgent:
         self.update_count += 1
         if self.update_count % self.target_update_interval == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
+
+    def save_model(self, path):
+        """保存模型"""
+        torch.save({
+            'q_network_state_dict': self.q_network.state_dict(),
+            'target_network_state_dict': self.target_network.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'epsilon': self.epsilon,
+            'update_count': self.update_count
+        }, path)
+        print(f"Model saved to {path}")
+
+    def load_model(self, path):
+        """加载模型"""
+        checkpoint = torch.load(path)
+        self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
+        self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.epsilon = checkpoint['epsilon']
+        self.update_count = checkpoint['update_count']
+        print(f"Model loaded from {path}")

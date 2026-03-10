@@ -4,7 +4,8 @@ from agents.dqn_agent import DQNAgent
 from agents.ddqn_agent import DDQNAgent
 import numpy as np
 from envs.Env import RadarEnvironment, Radar, StealthUAV
-from utils.visualization import plot_convergence_curve
+from utils.visualization import plot_convergence_curve, plot_real_time_metrics
+
 
 def showTrainResults(env, agent):
     """展示训练结果"""
@@ -62,8 +63,14 @@ def train():
     env.set_radar_enabled(False)
 
     returns = []
+    q_values = []
+    losses = []
 
-    for episode in range(400):
+    # 开启交互模式
+    plt.ion()
+    plt.figure(figsize=(10, 8))
+
+    for episode in range(1000):
         state = env.reset()
         done = False
         total_reward = 0
@@ -78,10 +85,21 @@ def train():
             total_reward += reward
 
         returns.append(total_reward)
-        if (episode + 1) % 50 == 0:
+        # 收集Q值和损失数据
+        if agent.q_value_history:
+            q_values.append(np.mean(agent.q_value_history[-10:]))  # 取最近10个Q值的平均值
+        if agent.loss_history:
+            losses.append(np.mean(agent.loss_history[-10:]))  # 取最近10个损失的平均值
+
+        if (episode + 1) % 10 == 0:  # 每10个episode更新一次图表
             print(f"Pre-training Episode {episode + 1}, Return: {total_reward:.2f}")
             avg_reward = np.mean(returns[-20:])
-            print(f"Episode {episode + 1:4d} | Avg Reward (last 50): {avg_reward:6.2f} | Epsilon: {agent.epsilon:.3f}")
+            print(f"Episode {episode + 1:4d} | Avg Reward (last 20): {avg_reward:6.2f} | Epsilon: {agent.epsilon:.3f}")
+            # 实时绘制指标
+            plot_real_time_metrics(returns, q_values, losses, episode + 1)
+
+    # 保存预训练模型
+    agent.save_model("models/ddqn_pretrained.pt")
 
     # 展示预训练结果
     showTrainResults(env, agent)
@@ -117,6 +135,8 @@ def train():
     #         avg_return = np.mean(returns[-100:])
     #         print(f"Episode {episode + 1}, Avg Return: {avg_return:.2f}, Status: {info['status']}")
 
+    # 关闭交互模式
+    plt.ioff()
     return agent, returns
 
 

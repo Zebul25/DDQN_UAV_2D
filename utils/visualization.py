@@ -356,7 +356,7 @@ def plot_convergence_curve(returns, title="Convergence Curve", with_threat=False
     if with_threat:
         ax.set_ylim(-1000, 100)
     else:
-        ax.set_ylim(-200, 300)
+        ax.set_ylim(-200, 400)
     
     ax.grid(True, alpha=0.3)
     ax.set_title(title, fontsize=12)
@@ -402,6 +402,33 @@ def simulate_convergence_data(with_threat=False, episodes=800):
     
     return returns
 
+
+def plot_real_time_metrics(returns, q_values, losses, episode):
+    """实时绘制训练指标"""
+    plt.clf()
+
+    # 创建3个子图
+    plt.subplot(3, 1, 1)
+    plt.plot(returns)
+    plt.title(f'Training Metrics - Episode {episode}')
+    plt.ylabel('Reward')
+    plt.grid(True)
+
+    plt.subplot(3, 1, 2)
+    if q_values:
+        plt.plot(q_values)
+        plt.ylabel('Q Value')
+        plt.grid(True)
+
+    plt.subplot(3, 1, 3)
+    if losses:
+        plt.plot(losses)
+        plt.ylabel('Loss')
+        plt.xlabel('Update Step')
+        plt.grid(True)
+
+    plt.tight_layout()
+    plt.pause(0.01)  # 暂停以更新图表
 
 # =============================================================================
 # 第七部分：Figure 8 - 四雷达环境下的路径对比
