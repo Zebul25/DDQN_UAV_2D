@@ -1,15 +1,16 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from agents.ddqn_agent import DDQNAgent
-from envs.Env import RadarEnvironment
+from agents.dqn_agent import DQNAgent
+from envs.environment import RadarEnvironment
+from test_utils import showTrainResults
 from utils.visualization import plot_convergence_curve
 
 
-def test_model(model_path):
+def test_model(model_path, agent):
     """测试保存的模型"""
     # 创建环境和智能体
     env = RadarEnvironment()
-    agent = DDQNAgent()
     env.set_radar_enabled(False)
 
     # 加载模型
@@ -39,10 +40,14 @@ def test_model(model_path):
                                  with_threat=False)
     fig.savefig(f"{save_path}/pre_test_model.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
+    showTrainResults(env, agent)
 
 
 if __name__ == "__main__":
     # 测试预训练模型
-    test_model("../models/ddqn_pretrained.pt")
+    # agent = DQNAgent(state_dim=2, action_dim=5)
+    # test_model("../models/dqn_pretrained.pt", agent)
+    agent = DDQNAgent()
+    test_model("../models/ddqn_pretrained.pt", agent)
     # 测试正式训练模型
     # test_model("models/ddqn_trained.pt")

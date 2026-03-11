@@ -352,7 +352,8 @@ def plot_convergence_curve(returns, title="Convergence Curve", with_threat=False
     ax.set_xlabel('Episode', fontsize=12)
     ax.set_ylabel('cumulative rewardReturn' if not with_threat else 'Return', fontsize=12)
     ax.set_xlim(0, len(returns))
-    
+
+    # 累积奖励范围
     if with_threat:
         ax.set_ylim(-1000, 100)
     else:

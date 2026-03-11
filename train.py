@@ -3,59 +3,46 @@ from matplotlib import pyplot as plt
 from agents.dqn_agent import DQNAgent
 from agents.ddqn_agent import DDQNAgent
 import numpy as np
-from envs.Env import RadarEnvironment, Radar, StealthUAV
+from envs.environment import RadarEnvironment
 from utils.visualization import plot_convergence_curve, plot_real_time_metrics
 
 
-def showTrainResults(env, agent):
-    """展示训练结果"""
-    state = env.reset()
-    done = False
-    total_reward = 0
-    # 开启交互模式
-    plt.ion()
+def pre_train(env, agent, returns, q_values, losses):
+    """预训练"""
 
-    # 创建图形和坐标轴
-    fig, ax = plt.subplots()
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 100)
-    ax.set_xlabel('X-axis(Km)')
-    ax.set_ylabel('Y-axis(Km)')
-    ax.set_title('Pre-Flight Path')
+    for episode in range(1000):
+        state = env.reset()
+        done = False
+        total_reward = 0
 
-    plt.legend(["Flight Path"])  # 图例
+        while not done:
+            action = agent.select_action(state)
+            next_state, reward, done, info = env.step(action)
+            agent.store_transition(state, action, reward, next_state, done)
+            agent.update()
+            state = next_state
+            total_reward += reward
 
-    # 初始化数据存储
-    x_data, y_data = [], []
-    line, = ax.plot([], [], 'b-', marker='o')  # 折线+圆点
+        returns.append(total_reward)
+        # 收集Q值和损失数据
+        if agent.q_value_history:
+            q_values.append(np.mean(agent.q_value_history[-10:]))  # 取最近10个Q值的平均值
+        if agent.loss_history:
+            losses.append(np.mean(agent.loss_history[-10:]))  # 取最近10个损失的平均值
 
-
-    while not done:
-        action = agent.select_action(state)
-        x, y = state
-        # 更新数据
-        x_data.append(x)
-        y_data.append(y)
-        # 更新线条数据
-        line.set_data(x_data, y_data)
-        # 刷新图形
-        plt.pause(0.01)  # 暂停 0.01 秒，同时刷新图形
-
-        next_state, reward, done, info = env.step(action)
-        state = next_state
-        total_reward += reward
-
-    plt.savefig("figures/pre_flight_path.png")
-    # 关闭交互模式（可选）
-    plt.ioff()
-    plt.show()  # 保持窗口开启
-
+        if (episode + 1) % 10 == 0:  # 每10个episode更新一次图表
+            print(f"Pre-training Episode {episode + 1}, Return: {total_reward:.2f}")
+            avg_reward = np.mean(returns[-20:])
+            print(f"Episode {episode + 1:4d} | Avg Reward (last 20): {avg_reward:6.2f} | Epsilon: {agent.epsilon:.3f}")
+            # 实时绘制指标
+            plot_real_time_metrics(returns, q_values, losses, episode + 1)
+    return env, agent, returns, q_values, losses
 
 
 def train():
     """训练主函数"""
-    agent = DDQNAgent()
-    # agent = DQNAgent(state_dim=2, action_dim=5)
+    # agent = DDQNAgent()
+    agent = DQNAgent(state_dim=2, action_dim=5)
     env = RadarEnvironment()
 
     # 阶段1: 预训练（无雷达威胁）
@@ -77,7 +64,6 @@ def train():
 
         while not done:
             action = agent.select_action(state)
-            # action = 0
             next_state, reward, done, info = env.step(action)
             agent.store_transition(state, action, reward, next_state, done)
             agent.update()
@@ -99,16 +85,16 @@ def train():
             plot_real_time_metrics(returns, q_values, losses, episode + 1)
 
     # 保存预训练模型
-    agent.save_model("models/ddqn_pretrained.pt")
+    # agent.save_model("models/ddqn_pretrained.pt")
+    agent.save_model("models/dqn_pretrained.pt")
 
-    # 展示预训练结果
-    showTrainResults(env, agent)
+    # 保存预训练结果图
     save_path = "./figures"
     print("Generating Figure : Convergence (No Threat)...")
     fig = plot_convergence_curve(returns,
-                                  "Figure : Optimal Convergence Rate (No Threat)",
-                                  with_threat=False)
-    fig.savefig(f"{save_path}/figure_convergence_no_threat.png", dpi=300, bbox_inches='tight')
+                                 "Figure : Optimal Convergence Rate (No Threat)",
+                                 with_threat=False)
+    fig.savefig(f"{save_path}/figure_convergence_no_threat_dqn.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
     # 阶段2: 正式训练（四雷达环境）
