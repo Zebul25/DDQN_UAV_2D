@@ -39,7 +39,7 @@ def showTrainResults(env, agent):
         state = next_state
         total_reward += reward
 
-    plt.savefig("figures/pre_flight_path.png")
+    plt.savefig("figures/flight_path.png")
     # 关闭交互模式（可选）
     plt.ioff()
     plt.show()  # 保持窗口开启

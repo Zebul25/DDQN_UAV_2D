@@ -50,28 +50,28 @@ class RadarEnvironment:
 
     def calculate_reward(self, Pd_max):
         """计算奖励"""
-        Ra, Rb, Rc = 0, 0, 0
+        Ra, Rb, Rc = 0, 0, -0.1
 
         # 到达奖励
         dist = np.linalg.norm(self.uav.position - np.array(self.target_point))
         if dist < self.target_threshold:
-            Ra = 100
+            Ra = 200
 
         # 检测惩罚（---有待调整---）
         if Pd_max < 0.3:
             Rb = 0
         elif Pd_max < 0.5:
-            Rb = -5
+            Rb = -2
         elif Pd_max < 0.6:
-            Rb = -10
+            Rb = -4
         elif Pd_max < 0.7:
-            Rb = -20
+            Rb = -8
         elif Pd_max < 0.8:
-            Rb = -40
+            Rb = -16
         elif Pd_max < 0.9:
-            Rb = -80
+            Rb = -32
         else:
-            Rb = -100
+            Rb = -64
 
         return Ra + Rb + Rc
 
@@ -91,6 +91,29 @@ class RadarEnvironment:
         Pd_max = self.get_max_detection_probability()
         reward = self.calculate_reward(Pd_max)
 
+        # 设计1
+        # 距离越近得到奖励相反得到惩罚
+        old_dist = np.linalg.norm(old_position - np.array(self.target_point))
+        new_dist = np.linalg.norm(new_position - np.array(self.target_point))
+        reward = reward + (old_dist - new_dist) * 0.3
+
+        # 设计2
+        # 计算距离变化
+        # dist_change = old_dist - new_dist
+        # 基础奖励系数，随距离减小而增大
+        # 使用倒数函数，确保离终点越近，相同距离变化的奖励越大
+        # min_dist = 1.0  # 避免除以零
+        # old_reward_factor = 10.0 / max(old_dist, min_dist)
+        # new_reward_factor = 10.0 / max(new_dist, min_dist)
+        #
+        # # 计算距离奖励
+        # distance_reward = dist_change * (old_reward_factor + new_reward_factor) / 2
+        # reward = reward + distance_reward
+        # 设计3
+        # dist_current = np.linalg.norm(new_position - np.array(self.target_point))
+        # dist_start = np.linalg.norm(np.array(self.start_point) - np.array(self.target_point))
+        # distance_reward = 5 * (1 - dist_current / dist_start)
+        # reward = reward + distance_reward
         done = False
         info = {"status": "flying", "Pd_max": Pd_max}
 
@@ -99,20 +122,12 @@ class RadarEnvironment:
             info["status"] = "arrived"
         elif Pd_max >= self.Pd_destroy_threshold:
             done = True
+            reward = -50
             info["status"] = "destroyed"
         elif not self.check_boundary():
             done = True
-            reward += -100
+            reward = -100
             info["status"] = "out_of_bounds"
 
-        if not done:
-            # 距离越近得到奖励相反得到惩罚
-            old_dist = np.linalg.norm(old_position - np.array(self.target_point))
-            new_dist = np.linalg.norm(new_position - np.array(self.target_point))
-            # if old_dist > new_dist:
-            #     reward = reward + 2
-            # else:
-            #     reward = reward - 2
-            reward = reward + (old_dist - new_dist) * 2
 
         return new_position, reward, done, info

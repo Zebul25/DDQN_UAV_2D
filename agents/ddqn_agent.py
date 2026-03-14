@@ -25,7 +25,7 @@ class DDQNAgent:
         self.epsilon_decay = 0.995
         self.batch_size = 64
         self.min_samples = 1000
-        self.target_update_interval = 10
+        self.target_update_interval = 50
 
         # 添加Q值和损失历史记录
         self.q_value_history = []
@@ -33,7 +33,9 @@ class DDQNAgent:
 
     def select_action(self, state):
         """选择动作"""
+        # 衰减epsilon
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+
         if np.random.random() < self.epsilon:
             return np.random.randint(5)
         else:
@@ -74,6 +76,8 @@ class DDQNAgent:
 
         # 计算损失并更新
         loss = nn.MSELoss()(current_q, target_q)
+        # 记录损失
+        self.loss_history.append(loss.item())
         self.optimizer.zero_grad()
         loss.backward()
         # 梯度裁剪

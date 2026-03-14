@@ -7,7 +7,7 @@ class StealthUAV:
     def __init__(self, start_position):
         self.position = np.array(start_position, dtype=float)
         self.heading = 45  # 初始航向角
-        self.step_size = 5  # 每步飞行距离 (km)
+        self.step_size =5  # 每步飞行距离 (km)
 
     def get_dynamic_RCS(self, radar_position):
         """计算动态RCS"""
