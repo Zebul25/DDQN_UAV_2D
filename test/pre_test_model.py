@@ -15,7 +15,6 @@ def test_model(model_path, agent):
 
     # 加载模型
     agent.load_model(model_path)
-
     returns = []
 
     for episode in range(200):
@@ -49,10 +48,8 @@ def test_pretrained_model(model_path, agent):
     env = RadarEnvironment()
     env.set_radar_enabled(False)
 
-
     # 加载模型
     agent.load_model(model_path)
-
     returns = []
 
     for episode in range(200):
