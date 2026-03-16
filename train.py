@@ -7,11 +7,14 @@ from envs.environment import RadarEnvironment
 from utils.visualization import plot_convergence_curve, plot_real_time_metrics
 
 
-def pre_train(env, agent, returns):
+def pre_train(env, agent):
     """预训练"""
-
+    # 阶段1: 预训练（无雷达威胁）
+    print("Phase 1: Pre-training without radar threats...")
+    env.set_radar_enabled(False)
     q_values = []
     losses = []
+    returns = []
 
     # 开启交互模式
     plt.ion()
@@ -45,34 +48,24 @@ def pre_train(env, agent, returns):
             plot_real_time_metrics(returns, q_values, losses, episode + 1)
     # 关闭交互模式
     plt.ioff()
-    return env, agent, returns
+
+    # 保存预训练结果图
+    save_path = "./figures"
+    print("Generating Figure : Convergence (No Threat)...")
+    fig = plot_convergence_curve(returns,
+                                 "Figure : Optimal Convergence Rate (No Threat)",
+                                 with_threat=False)
+    fig.savefig(f"{save_path}/figure_convergence_no_threat_dqn.png", dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    return agent
 
 
-def train():
+def train(env, agent):
     """训练主函数"""
     agent = DDQNAgent()
     # agent = DQNAgent(state_dim=2, action_dim=5)
     env = RadarEnvironment()
-
-    # 阶段1: 预训练（无雷达威胁）
-    # print("Phase 1: Pre-training without radar threats...")
-    # env.set_radar_enabled(False)
     returns = []
-
-    # env, agent, returns = pre_train(env, agent, returns)
-
-    # 保存预训练模型
-    # agent.save_model("models/ddqn_pretrained.pt")
-    # agent.save_model("models/dqn_pretrained.pt")
-
-    # 保存预训练结果图
-    # save_path = "./figures"
-    # print("Generating Figure : Convergence (No Threat)...")
-    # fig = plot_convergence_curve(returns,
-    #                              "Figure : Optimal Convergence Rate (No Threat)",
-    #                              with_threat=False)
-    # fig.savefig(f"{save_path}/figure_convergence_no_threat_dqn.png", dpi=300, bbox_inches='tight')
-    # plt.close(fig)
 
     # 加载预训练模型
     # agent.load_model("models/ddqn_pretrained.pt")
@@ -82,7 +75,6 @@ def train():
     # 阶段2: 正式训练（四雷达环境）
     print("\nPhase 2: Training with radar threats...")
     env.set_radar_enabled(True)
-
 
     q_values = []
     losses = []
@@ -128,13 +120,23 @@ def train():
 
 
 if __name__ == "__main__":
-    agent, returns = train()
-    agent.save_model("models/ddqn_trained.pt")
+    agent = DDQNAgent()
+    env = RadarEnvironment()
+    # 预训练
+    agent = pre_train(env, agent)
+    # 保存预训练模型
+    # agent.save_model("models/ddqn_pretrained.pt")
+    # agent.save_model("models/dqn_pretrained.pt")
+
+    # 正式训练
+    # agent = train(env, agent)
+    # 保存正式训练模型
+    # agent.save_model("models/ddqn_trained.pt")
     # 展示正式训练结果
-    save_path = "./figures"
-    print("Generating Figure : Convergence ...")
-    fig = plot_convergence_curve(returns,
-                                 "Figure : Optimal Convergence Rate (With Threat)",
-                                 with_threat=True)
-    fig.savefig(f"{save_path}/figure_convergence_threat.png", dpi=300, bbox_inches='tight')
-    plt.close(fig)
+    # save_path = "./figures"
+    # print("Generating Figure : Convergence ...")
+    # fig = plot_convergence_curve(returns,
+    #                              "Figure : Optimal Convergence Rate (With Threat)",
+    #                              with_threat=True)
+    # fig.savefig(f"{save_path}/figure_convergence_threat.png", dpi=300, bbox_inches='tight')
+    # plt.close(fig)
