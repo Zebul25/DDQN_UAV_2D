@@ -34,6 +34,8 @@ def pre_train(env, agent):
             total_reward += reward
 
         returns.append(total_reward)
+        # 衰减epsilon
+        # agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
         # 收集Q值和损失数据
         if agent.q_value_history:
             q_values.append(np.mean(agent.q_value_history[-10:]))  # 取最近10个Q值的平均值
@@ -46,6 +48,7 @@ def pre_train(env, agent):
             print(f"Episode {episode + 1:4d} | Avg Reward (last 20): {avg_reward:6.2f} | Epsilon: {agent.epsilon:.3f}")
             # 实时绘制指标
             plot_real_time_metrics(returns, q_values, losses, episode + 1)
+    plt.savefig("./figures/pretraining.png")
     # 关闭交互模式
     plt.ioff()
 
@@ -62,14 +65,11 @@ def pre_train(env, agent):
 
 def train(env, agent):
     """训练主函数"""
-    agent = DDQNAgent()
-    # agent = DQNAgent(state_dim=2, action_dim=5)
-    env = RadarEnvironment()
     returns = []
 
     # 加载预训练模型
     # agent.load_model("models/ddqn_pretrained.pt")
-    agent.epsilon = 1.0
+    # agent.epsilon = 1.0
     # agent.epsilon_decay = 0.999
 
     # 阶段2: 正式训练（四雷达环境）
@@ -97,6 +97,8 @@ def train(env, agent):
             total_reward += reward
 
         returns.append(total_reward)
+        # 衰减epsilon
+        agent.epsilon = max(agent.epsilon_min, agent.epsilon * agent.epsilon_decay)
         # 收集Q值和损失数据
         if agent.q_value_history:
             q_values.append(np.mean(agent.q_value_history[-10:]))  # 取最近10个Q值的平均值
@@ -115,6 +117,7 @@ def train(env, agent):
             print(f"Episode {episode + 1}, Avg Return: {avg_return:.2f}, Status: {info['status']}")
 
     # 关闭交互模式
+    plt.savefig("./figures/training.png")
     plt.ioff()
     return agent, returns
 
@@ -123,13 +126,13 @@ if __name__ == "__main__":
     agent = DDQNAgent()
     env = RadarEnvironment()
     # 预训练
-    agent = pre_train(env, agent)
+    # agent = pre_train(env, agent)
     # 保存预训练模型
     # agent.save_model("models/ddqn_pretrained.pt")
     # agent.save_model("models/dqn_pretrained.pt")
 
     # 正式训练
-    # agent = train(env, agent)
+    agent = train(env, agent)
     # 保存正式训练模型
     # agent.save_model("models/ddqn_trained.pt")
     # 展示正式训练结果

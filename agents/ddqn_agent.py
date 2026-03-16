@@ -34,7 +34,7 @@ class DDQNAgent:
     def select_action(self, state):
         """选择动作"""
         # 衰减epsilon
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        # self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
         if np.random.random() < self.epsilon:
             return np.random.randint(5)

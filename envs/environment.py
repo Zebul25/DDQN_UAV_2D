@@ -56,23 +56,23 @@ class RadarEnvironment:
         # 到达奖励
         dist = np.linalg.norm(self.uav.position - np.array(self.target_point))
         if dist < self.target_threshold:
-            Ra = 200
+            Ra = 100
 
         # 检测惩罚（---有待调整---）
         if Pd_max < 0.3:
             Rb = 0
         elif Pd_max < 0.5:
-            Rb = -2
+            Rb = -5
         elif Pd_max < 0.6:
-            Rb = -4
+            Rb = -10
         elif Pd_max < 0.7:
-            Rb = -8
+            Rb = -20
         elif Pd_max < 0.8:
-            Rb = -16
+            Rb = -30
         elif Pd_max < 0.9:
-            Rb = -32
+            Rb = -40
         else:
-            Rb = -64
+            Rb = -50
 
         return Ra + Rb + Rc
 
@@ -106,7 +106,7 @@ class RadarEnvironment:
         new_dist = np.linalg.norm(new_position - np.array(self.target_point))
         dist_change = old_dist - new_dist
         # 归一化奖励
-        r_path = dist_change / self.init_dist * 10
+        r_path = (dist_change / self.init_dist) * 20
 
         # 航向奖励
         # 计算航向偏差
@@ -128,10 +128,10 @@ class RadarEnvironment:
             info["status"] = "destroyed"
         elif not self.check_boundary():
             done = True
-            r_boundary = -100
+            r_boundary = -50
             info["status"] = "out_of_bounds"
 
         # 总奖励
-        reward = r_path + r_heading + r_collision + r_boundary
+        reward += r_path + r_heading + r_collision + r_boundary
 
         return new_position, reward, done, info
