@@ -91,7 +91,7 @@ def train():
     plt.ion()
     plt.figure(figsize=(10, 8))
 
-    for episode in range(1000):
+    for episode in range(2000):
         state = env.reset()
         done = False
         total_reward = 0
