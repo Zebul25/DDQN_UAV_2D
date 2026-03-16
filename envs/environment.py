@@ -5,6 +5,11 @@ from envs.radar import Radar
 from envs.uav import StealthUAV
 
 
+def _normalize_angle(angle):
+    """将弧度角归一化到 [-π, π]"""
+    return (angle + np.pi) % (2 * np.pi) - np.pi
+
+
 class RadarEnvironment:
     """雷达对抗环境"""
 
@@ -27,14 +32,54 @@ class RadarEnvironment:
         # 无人机
         self.uav = None
 
+    def get_state(self):
+        """获取当前状态"""
+        # 位置归一化
+        x_norm = self.uav.position[0] / 100.0
+        y_norm = self.uav.position[1] / 100.0
+
+        # 航向 (sin/cos 避免角度跳变)
+        heading_rad = np.radians(self.uav.heading)
+
+        # 目标信息
+        dx = 100 - self.uav.position[0]
+        dy = 100 - self.uav.position[1]
+        dist_goal = np.sqrt(dx ** 2 + dy ** 2) / 141.4  # 归一化
+
+        goal_angle = np.arctan2(dy, dx)
+        relative_angle = _normalize_angle(goal_angle - heading_rad)
+
+        # 雷达信息（关键！）
+        radar_info = []
+        for radar in self.radars:
+            dist = np.sqrt((self.uav.position[0] - radar.position[0]) ** 2 +
+                           (self.uav.position[1] - radar.position[1]) ** 2) / 100.0
+            prob = self.get_detection_probability(radar)
+            radar_info.extend([dist, prob])
+
+        return np.array([
+            x_norm, y_norm,  # 2
+            np.sin(heading_rad), np.cos(heading_rad),  # 2
+            dist_goal, relative_angle / np.pi,  # 2
+            *radar_info  # 8
+        ], dtype=np.float32)  # 共14维
+
     def reset(self):
         """重置环境"""
         self.uav = StealthUAV(self.start_point)
-        return self.uav.position.copy()
+ 
+        return self.get_state()
 
     def set_radar_enabled(self, enabled):
         """设置雷达开关（用于预训练）"""
         self.radar_enabled = enabled
+
+    def get_detection_probability(self, radar: Radar):
+        """获取最大检测概率"""
+        if not self.radar_enabled:
+            return 0.0
+        sigma = self.uav.get_dynamic_RCS(radar.position)
+        return radar.calculate_detection_probability(self.uav.position, sigma)
 
     def get_max_detection_probability(self):
         """获取最大检测概率"""

@@ -10,9 +10,9 @@ from models.q_network import QNetwork
 class DDQNAgent:
     """DDQN智能体"""
 
-    def __init__(self):
-        self.q_network = QNetwork()
-        self.target_network = QNetwork()
+    def __init__(self, state_dim, action_dim):
+        self.q_network = QNetwork(state_dim, action_dim)
+        self.target_network = QNetwork(state_dim, action_dim)
         self.target_network.load_state_dict(self.q_network.state_dict())
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=2e-4)
