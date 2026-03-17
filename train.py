@@ -83,7 +83,7 @@ def train(env, agent):
     plt.ion()
     plt.figure(figsize=(10, 8))
 
-    for episode in range(2000):
+    for episode in range(800):
         state = env.reset()
         done = False
         total_reward = 0
@@ -123,8 +123,8 @@ def train(env, agent):
 
 
 if __name__ == "__main__":
-    agent = DDQNAgent()
     env = RadarEnvironment()
+    agent = DDQNAgent(14, 5)
     # 预训练
     # agent = pre_train(env, agent)
     # 保存预训练模型

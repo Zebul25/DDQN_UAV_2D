@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from scipy.special import erfc
 
@@ -8,6 +10,11 @@ from envs.uav import StealthUAV
 def _normalize_angle(angle):
     """将弧度角归一化到 [-π, π]"""
     return (angle + np.pi) % (2 * np.pi) - np.pi
+
+
+def distance_to_goal(state):
+    """计算到目标的距离"""
+    return state.dist_goal
 
 
 class RadarEnvironment:
@@ -67,7 +74,7 @@ class RadarEnvironment:
     def reset(self):
         """重置环境"""
         self.uav = StealthUAV(self.start_point)
- 
+
         return self.get_state()
 
     def set_radar_enabled(self, enabled):
@@ -94,32 +101,75 @@ class RadarEnvironment:
 
         return max_Pd
 
-    def calculate_reward(self, Pd_max):
-        """计算奖励"""
-        Ra, Rb, Rc = 0, 0, -0.1
+    def calculate_reward(self, state, next_state):
+        reward = 0
 
-        # 到达奖励
-        dist = np.linalg.norm(self.uav.position - np.array(self.target_point))
-        if dist < self.target_threshold:
-            Ra = 100
+        # 1. 到达目标（保持）
+        if self.check_arrival():
+            return 100  # 降低一点，让其他奖励更有意义
 
-        # 检测惩罚（---有待调整---）
-        if Pd_max < 0.3:
-            Rb = 0
-        elif Pd_max < 0.5:
-            Rb = -5
-        elif Pd_max < 0.6:
-            Rb = -10
-        elif Pd_max < 0.7:
-            Rb = -20
-        elif Pd_max < 0.8:
-            Rb = -30
-        elif Pd_max < 0.9:
-            Rb = -40
+        # 2. 撞边界
+        if self.check_boundary():
+            return -20  # 降低，不要比雷达惩罚还重
+
+        # 3. 路径进展奖励（关键改进）
+        dist_prev = state[4]
+        dist_curr = next_state[4]
+        dist_change = dist_prev - dist_curr  # 正值=接近目标
+
+        # 归一化到合理范围
+        r_progress = dist_change * 2  # 步长5，最大变化5，奖励最大10
+
+        # 4. 雷达惩罚（大幅降低）
+        detection_prob = self.get_max_detection_probability()
+        if detection_prob < 0.3:
+            r_radar = 0
+        elif detection_prob < 0.5:
+            r_radar = -1
+        elif detection_prob < 0.7:
+            r_radar = -2
+        elif detection_prob < 0.9:
+            r_radar = -4
         else:
-            Rb = -50
+            r_radar = -6
 
-        return Ra + Rb + Rc
+        # 5. 移除每步固定惩罚（已有进展奖励）
+        # r_step = -0.1  # 删除或降到 -0.01
+
+        # 6. 航向奖励（简化）
+        goal_direction = math.atan2(100 - next_state[1], 100 - next_state[0])
+        heading_diff = abs(_normalize_angle(next_state[2] - goal_direction))
+        r_heading = 0.5 * (1 - heading_diff / 180)  # 范围[0, 0.5]
+
+        reward = r_progress + r_radar + r_heading
+        return reward
+
+    # def calculate_reward(self, Pd_max):
+    #     """计算奖励"""
+    #     Ra, Rb, Rc = 0, 0, -0.1
+    #
+    #     # 到达奖励
+    #     dist = np.linalg.norm(self.uav.position - np.array(self.target_point))
+    #     if dist < self.target_threshold:
+    #         Ra = 100
+    #
+    #     # 检测惩罚（---有待调整---）
+    #     if Pd_max < 0.3:
+    #         Rb = 0
+    #     elif Pd_max < 0.5:
+    #         Rb = -5
+    #     elif Pd_max < 0.6:
+    #         Rb = -10
+    #     elif Pd_max < 0.7:
+    #         Rb = -20
+    #     elif Pd_max < 0.8:
+    #         Rb = -30
+    #     elif Pd_max < 0.9:
+    #         Rb = -40
+    #     else:
+    #         Rb = -50
+    #
+    #     return Ra + Rb + Rc
 
     def check_boundary(self):
         """检查边界"""
@@ -140,27 +190,10 @@ class RadarEnvironment:
 
     def step(self, action):
         """执行一步"""
+        state = self.get_state()
         old_position, new_position = self.uav.move(action)
+        next_state = self.get_state()
         Pd_max = self.get_max_detection_probability()
-        reward = self.calculate_reward(Pd_max)
-        r_path, r_heading, r_collision, r_boundary = 0, 0, 0, 0
-
-        # 路径奖励
-        # 距离越近得到奖励相反得到惩罚
-        old_dist = np.linalg.norm(old_position - np.array(self.target_point))
-        new_dist = np.linalg.norm(new_position - np.array(self.target_point))
-        dist_change = old_dist - new_dist
-        # 归一化奖励
-        r_path = (dist_change / self.init_dist) * 20
-
-        # 航向奖励
-        # 计算航向偏差
-        ideal_heading = self.angle_to_goal()
-        heading_diff = abs(self.uav.heading - ideal_heading)
-        heading_diff = min(heading_diff, 360 - heading_diff)  # 取较小的角度差
-        # 归一化到 [0, 1]，角度差越小奖励越大
-        r_heading = 1.0 - (heading_diff / 180.0)
-
         done = False
         info = {"status": "flying", "Pd_max": Pd_max}
 
@@ -169,14 +202,11 @@ class RadarEnvironment:
             info["status"] = "arrived"
         elif Pd_max >= self.Pd_destroy_threshold:
             done = True
-            r_collision = -50
             info["status"] = "destroyed"
         elif not self.check_boundary():
             done = True
-            r_boundary = -50
             info["status"] = "out_of_bounds"
 
-        # 总奖励
-        reward += r_path + r_heading + r_collision + r_boundary
+        reward = self.calculate_reward(state, next_state)
 
-        return new_position, reward, done, info
+        return next_state, reward, done, info
