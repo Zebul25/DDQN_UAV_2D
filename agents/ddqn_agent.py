@@ -15,17 +15,17 @@ class DDQNAgent:
         self.target_network = QNetwork(state_dim, action_dim)
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=2e-4)
-        self.replay_buffer = deque(maxlen=10000)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=1e-4)
+        self.replay_buffer = deque(maxlen=100000)
         self.update_count = 0
 
         self.gamma = 0.98
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.batch_size = 64
+        self.batch_size = 128
         self.min_samples = 1000
-        self.target_update_interval = 50
+        self.target_update_interval = 200
 
         # 添加Q值和损失历史记录
         self.q_value_history = []
